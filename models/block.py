@@ -3,7 +3,7 @@ from keras.layers import *
 
 
 def _bernoulli(shape, mean):
-    return tf.nn.relu(tf.sign(mean - tf.random_uniform(shape, minval=0, maxval=1, dtype=tf.float32)))
+    return tf.nn.relu(tf.sign(mean - tf.random.uniform(shape, minval=0, maxval=1, dtype=tf.float32)))
 
 
 class DropBlock2D(tf.keras.layers.Layer):
@@ -34,7 +34,7 @@ class DropBlock2D(tf.keras.layers.Layer):
             mask = self._create_mask(tf.shape(inputs))
             output = inputs * mask
             output = tf.cond(self.scale,
-                             true_fn=lambda: output * tf.to_float(tf.size(mask)) / tf.reduce_sum(mask),
+                             true_fn=lambda: output * tf.cast(tf.size(mask), tf.float32) / tf.reduce_sum(mask),
                              false_fn=lambda: output)
             return output
 
@@ -49,7 +49,8 @@ class DropBlock2D(tf.keras.layers.Layer):
         """This method only supports Eager Execution"""
         if keep_prob is not None:
             self.keep_prob = keep_prob
-        w, h = tf.to_float(self.w), tf.to_float(self.h)
+        # w, h = tf.to_float(self.w), tf.to_float(self.h)
+        w, h = tf.cast(self.w, tf.float32), tf.cast(self.h, tf.float32)
         self.gamma = (1. - self.keep_prob) * (w * h) / (self.block_size ** 2) / \
                      ((w - self.block_size + 1) * (h - self.block_size + 1))
 
@@ -145,7 +146,7 @@ def slice_at_block(inputlayer, outdim, name='None'):
     x_3 = TimeDistributed(GlobalAveragePooling2D(
     ), name='T_' + name + '_gap')(inputlayer)
 
-    x = TimeDistributed(Conv2D(2, 1, padding='same', activation='relu', name=name + '_1*1'), name=name)(
+    x = TimeDistributed(Conv2D(2, 1, padding='same', activation='relu', name=name + '_1-1'), name=name)(
         x_0)
     x = TimeDistributed(BatchNormalization(
         axis=3, name=name + '_bn'), name='T_' + name + '_bn')(x)
@@ -153,7 +154,7 @@ def slice_at_block(inputlayer, outdim, name='None'):
     x = ConvLSTM2D(filters=convfilter, kernel_size=(3, 3), padding='same', return_sequences=True, go_backwards=False,
                    kernel_initializer='he_normal', activation='sigmoid', name=name + '_SABC')(x)
     x = TimeDistributed(Conv2D(
-        1, 3, padding='same', activation='sigmoid', name=name + '_3*3sig'))(x)
+        1, 3, padding='same', activation='sigmoid', name=name + '_3-3sig'))(x)
     x_3 = Reshape((4, 16, outdim // 16, 1))(x_3)
     x_3 = ConvLSTM2D(filters=1, kernel_size=(5, 5), padding='same', return_sequences=True, go_backwards=False,
                      kernel_initializer='he_normal', activation='sigmoid', name=name + '_CABC')(x_3)
@@ -174,7 +175,7 @@ def slice_with_block(inputlayer, outdim, name='None'):
     x_3 = TimeDistributed(GlobalAveragePooling2D(
     ), name='T_' + name + '_gap')(inputlayer)
 
-    x = TimeDistributed(Conv2D(2, 1, padding='same', activation='relu', name=name + '_1*1'), name=name)(
+    x = TimeDistributed(Conv2D(2, 1, padding='same', activation='relu', name=name + '_1-1'), name=name)(
         x_0)
     x = TimeDistributed(BatchNormalization(
         axis=3, name=name + '_bn'), name='T_' + name + '_bn')(x)
@@ -185,7 +186,7 @@ def slice_with_block(inputlayer, outdim, name='None'):
                    kernel_initializer='he_normal', activation='sigmoid')(x)
     x = Add()([x_1, x_2])
     x = TimeDistributed(Conv2D(
-        1, 3, padding='same', activation='sigmoid', name=name + '_3*3sig'))(x)
+        1, 3, padding='same', activation='sigmoid', name=name + '_3-3sig'))(x)
     x_3 = Reshape((4, 16, outdim // 16, 1))(x_3)
     x_3 = ConvLSTM2D(filters=1, kernel_size=(5, 5), padding='same', return_sequences=True, go_backwards=False,
                      kernel_initializer='he_normal', activation='sigmoid', name=name + '_CABC')(x_3)
